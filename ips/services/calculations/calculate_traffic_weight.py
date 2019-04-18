@@ -71,10 +71,6 @@ def r_survey_input(df_survey_input):
     sort1 = [SAMP_PORT_GRP_PV, ARRIVEDEPART]
     df_survey_input_sorted = df_survey_input.sort_values(sort1)
 
-    # Cleanse data
-    df_survey_input_sorted = df_survey_input_sorted[~df_survey_input_sorted[SAMP_PORT_GRP_PV].isnull()]
-    df_survey_input_sorted = df_survey_input_sorted[~df_survey_input_sorted[ARRIVEDEPART].isnull()]
-
     # Create lookup. Group by and aggregate
     lookup_dataframe = df_survey_input_sorted.copy()
     lookup_dataframe["count"] = ""
@@ -128,6 +124,59 @@ def r_population_input(df_survey_input, df_tr_totals):
     # Cleanse data
     df_survey_input_sorted = df_survey_input_sorted[~df_survey_input_sorted[SAMP_PORT_GRP_PV].isnull()]
     df_survey_input_sorted = df_survey_input_sorted[~df_survey_input_sorted[ARRIVEDEPART].isnull()]
+
+    # Check for errors within data before passed into R
+    values = df_survey_input_sorted.SHIFT_WT * df_survey_input_sorted.NON_RESPONSE_WT * df_survey_input_sorted.MINS_WT
+    df_survey_input_check = df_survey_input_sorted
+    df_survey_input_check['TRAFDESIGNWEIGHT'] = values
+
+    df_survey_input_check['C_GROUP'] = np.where(df_survey_input_check['TRAFDESIGNWEIGHT'] > 0, 1, 0)
+    df_ges_input = df_survey_input_check[['SAMP_PORT_GRP_PV', 'ARRIVEDEPART', 'TRAFDESIGNWEIGHT', 'C_GROUP', 'SERIAL']]
+    df_ges_input = df_ges_input.sort_values(sort1)
+    df_rsumsamp = df_ges_input.groupby(['SAMP_PORT_GRP_PV', 'ARRIVEDEPART']).agg(
+                                                 {'TRAFDESIGNWEIGHT': 'sum'}).reset_index()
+
+    df_pop_totals_check = df_tr_totals.sort_values(sort1)
+    df_pop_totals_check = df_pop_totals_check[~df_pop_totals_check['SAMP_PORT_GRP_PV'].isnull()]
+    df_pop_totals_check = df_pop_totals_check[~df_pop_totals_check['ARRIVEDEPART'].isnull()]
+    df_pop_totals_check = df_pop_totals_check.groupby(['SAMP_PORT_GRP_PV', 'ARRIVEDEPART']).agg({'TRAFFICTOTAL': 'sum'}).reset_index()
+
+    df_merge_totals = df_rsumsamp.merge(df_pop_totals_check, on=sort1, how='outer')
+    df_merge_totals = df_merge_totals.sort_values(sort1)
+
+    # Error check 1
+    df_sum_check_1 = df_merge_totals[df_merge_totals['TRAFDESIGNWEIGHT'] > 0 & df_merge_totals['TRAFDESIGNWEIGHT'].notnull()]
+    df_sum_check_2 = df_sum_check_1[df_sum_check_1['TRAFFICTOTAL'] < 0 | df_sum_check_1['TRAFFICTOTAL'].isnull()]
+
+    if len(df_sum_check_2):
+        threshold_string_cap = 4000
+        error_str = "No traffic total but sampled records present for"
+
+        threshold_string = ""
+        for index, record in df_sum_check_2.iterrows():
+            threshold_string += \
+                error_str + " " + 'SAMP_PORT_GRP_PV' + " = " + str(record[0]) \
+                + " " + 'ARRIVEDEPART' + " = " + str(record[1]) + "\n"
+
+        threshold_string_capped = threshold_string[:threshold_string_cap]
+        log.error(threshold_string_capped)
+
+    # Error check 2
+    df_sum_check_1 = df_merge_totals[df_merge_totals['TRAFFICTOTAL'] > 0 & df_merge_totals['TRAFFICTOTAL'].notnull()]
+    df_sum_check_2 = df_sum_check_1[df_sum_check_1['TRAFDESIGNWEIGHT'] < 0 | df_sum_check_1['TRAFDESIGNWEIGHT'].isnull()]
+
+    if len(df_sum_check_2):
+        threshold_string_cap = 4000
+        error_str = "No records to match traffic against for"
+
+        threshold_string = ""
+        for index, record in df_sum_check_2.iterrows():
+            threshold_string += \
+                error_str + " " + 'SAMP_PORT_GRP_PV' + " = " + str(record[0]) \
+                + " " + 'ARRIVEDEPART' + " = " + str(record[1]) + "\n"
+
+        threshold_string_capped = threshold_string[:threshold_string_cap]
+        log.error(threshold_string_capped)
 
     # Sort input values
     df_pop_totals = df_tr_totals.sort_values(sort1)

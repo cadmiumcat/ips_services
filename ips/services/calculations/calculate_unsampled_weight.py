@@ -105,7 +105,6 @@ def r_population_input(survey_input: pd.DataFrame, ustotals: pd.DataFrame) -> No
     df_us_totals = ustotals
 
     sort1 = ['UNSAMP_PORT_GRP_PV', 'UNSAMP_REGION_GRP_PV', 'ARRIVEDEPART']
-
     df_survey_input_lookup = df_survey_input.sort_values(sort1)
 
     # Cleanse data
@@ -113,6 +112,53 @@ def r_population_input(survey_input: pd.DataFrame, ustotals: pd.DataFrame) -> No
 
     df_survey_input_lookup = df_survey_input_lookup[~df_survey_input_lookup['UNSAMP_PORT_GRP_PV'].isnull()]
     df_survey_input_lookup = df_survey_input_lookup[~df_survey_input_lookup['ARRIVEDEPART'].isnull()]
+
+    # Check data for errors before passed into R for processing
+    df_survey_input_sorted = df_survey_input_lookup
+    values = df_survey_input_sorted.SHIFT_WT * df_survey_input_sorted.NON_RESPONSE_WT * df_survey_input_sorted.MINS_WT * df_survey_input_sorted.TRAFFIC_WT
+    df_survey_input_sorted['OOHDESIGNWEIGHT'] = values
+    df_survey_input_sorted['C_GROUP'] = np.where(df_survey_input_sorted['OOHDESIGNWEIGHT'] > 0, 1, 0)
+    df_ges_input = df_survey_input_sorted[['UNSAMP_PORT_GRP_PV', 'UNSAMP_REGION_GRP_PV', 'ARRIVEDEPART', 'OOHDESIGNWEIGHT', 'C_GROUP', 'SERIAL']]
+    df_ges_input = df_ges_input.sort_values(sort1)
+
+    df_rsumsamp = df_ges_input.groupby(['UNSAMP_PORT_GRP_PV', 'UNSAMP_REGION_GRP_PV', 'ARRIVEDEPART']).agg(
+                                        {'OOHDESIGNWEIGHT': 'sum'}).reset_index()
+
+    df_us_totals_check = ustotals
+    df_us_totals_check.UNSAMP_REGION_GRP_PV.fillna(value=0, inplace=True)
+    df_pop_totals = df_us_totals_check.groupby(['UNSAMP_PORT_GRP_PV', 'UNSAMP_REGION_GRP_PV', 'ARRIVEDEPART']).agg(
+                    {'UNSAMP_TOTAL': 'sum'}).reset_index()
+    df_merge_totals = df_rsumsamp.merge(df_pop_totals, on=sort1, how='outer')
+
+    # Error check 1
+    df_sum_check_1 = df_merge_totals[df_merge_totals['OOHDESIGNWEIGHT'] > 0 & df_merge_totals['OOHDESIGNWEIGHT'].notnull()]
+    df_sum_check_2 = df_sum_check_1[df_sum_check_1['UNSAMP_TOTAL'] < 0 | df_sum_check_1['UNSAMP_TOTAL'].isnull()]
+
+    if len(df_sum_check_2):
+        threshold_string_cap = 4000
+        error_str = "No traffic total but sampled records present for"
+        threshold_string = ""
+        for index, record in df_sum_check_2.iterrows():
+            threshold_string += \
+                error_str + " " + 'SAMP_PORT_GRP_PV' + " = " + str(record[0]) \
+                + " " + 'ARRIVEDEPART' + " = " + str(record[1]) + "\n"
+        threshold_string_capped = threshold_string[:threshold_string_cap]
+        log.error(threshold_string_capped)
+
+    # Error check 2
+    df_sum_check_1 = df_merge_totals[df_merge_totals['UNSAMP_TOTAL'] > 0 & df_merge_totals['UNSAMP_TOTAL'].notnull()]
+    df_sum_check_2 = df_sum_check_1[df_sum_check_1['OOHDESIGNWEIGHT'] < 0 | df_sum_check_1['OOHDESIGNWEIGHT'].isnull()]
+
+    if len(df_sum_check_2):
+        threshold_string_cap = 4000
+        error_str = "No records to match traffic against for"
+        threshold_string = ""
+        for index, record in df_sum_check_2.iterrows():
+            threshold_string += \
+                error_str + " " + 'SAMP_PORT_GRP_PV' + " = " + str(record[0]) \
+                + " " + 'ARRIVEDEPART' + " = " + str(record[1]) + "\n"
+        threshold_string_capped = threshold_string[:threshold_string_cap]
+        log.error(threshold_string_capped)
 
     # Create lookup. Group by and aggregate. Allocates T_1 - T_n.
     lookup_dataframe = df_survey_input_lookup
