@@ -26,12 +26,14 @@ class StartApi(Api):
         log.info("Starting calculations for RUN_ID: " + run_id)
 
         try:
+            log.info("here")
             if not db.is_valid_run_id(run_id):
+                log.info(run_id + " is not a valid run_id")
                 result = {'status': "invalid job id: " + run_id}
                 resp.status = falcon.HTTP_401
                 resp.body = json.dumps(result)
                 return
-
+            log.info("before thread")
             thr = threading.Thread(target=self.workflow.run_calculations, args=(run_id,))
 
             thr.start()
@@ -42,5 +44,6 @@ class StartApi(Api):
             resp.body = json.dumps(result)
 
         except ValueError:
+            log.info("No idea what the error is...")
             raise falcon.HTTPError(falcon.HTTP_400, 'Invalid JSON',
                                    'Could not decode the request body. The JSON was invalid.')

@@ -522,10 +522,8 @@ def store_step_summary(run_id, step_configuration):
 
 
 def is_valid_run_id(run_id: str) -> bool:
-
-    df = select_data(column_name="run_id", table_name='SURVEY_SUBSAMPLE', condition1="RUN_ID", condition2=run_id)
-
-    if df.count() != 0:
-        return True
-    else:
+    df = select_data(column_name="run_id", table='SURVEY_SUBSAMPLE', condition1="RUN_ID", condition2=run_id)
+    if df.empty:
         return False
+    else:
+        return True

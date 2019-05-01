@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from pandas.util.testing import assert_frame_equal
 
-from ips import do_ips_trafweight_calculation_with_R
+from ips import do_ips_trafweight_calculation_with_r
 from ips import common_functions as cf, process_variables
 from ips import data_management as idm
 from tests import common_testing_functions as ctf
@@ -273,7 +273,7 @@ def test_traffic_weight_step(path_to_data):
     # df_test_survey_data.index = range(0, len(df_test_survey_data))
 
     # do the calculation
-    df_output_merge_final, df_output_summary = do_ips_trafweight_calculation_with_R(df_surveydata_import_actual_sql,
+    df_output_merge_final, df_output_summary = do_ips_trafweight_calculation_with_r(df_surveydata_import_actual_sql,
                                                                                     df_tr_data_import_actual)
 
     # ###########################
