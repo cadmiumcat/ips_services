@@ -1461,12 +1461,12 @@ create table PS_NON_RESPONSE
   NR_PORT_GRP_PV   varchar(10)    not null,
   ARRIVEDEPART     decimal(1)     not null,
   WEEKDAY_END_PV   decimal(1)     null,
-  MEAN_RESPS_SH_WT decimal(9, 3)  null,
+  MEAN_RESPS_SH_WT float  null,
   COUNT_RESPS      decimal(6)     null,
-  PRIOR_SUM        decimal(12, 3) null,
-  GROSS_RESP       decimal(12, 3) null,
-  GNR              decimal(12, 3) null,
-  MEAN_NR_WT       decimal(9, 3)  null
+  PRIOR_SUM        float null,
+  GROSS_RESP       float null,
+  GNR              float null,
+  MEAN_NR_WT       float  null
 );
 
 
@@ -1793,12 +1793,12 @@ create table SAS_PS_NON_RESPONSE
   NR_PORT_GRP_PV   varchar(10)    not null,
   ARRIVEDEPART     decimal(1)     not null,
   WEEKDAY_END_PV   decimal(1)     null,
-  MEAN_RESPS_SH_WT decimal(9, 3)  null,
+  MEAN_RESPS_SH_WT float  null,
   COUNT_RESPS      decimal(6)     null,
-  PRIOR_SUM        decimal(12, 3) null,
-  GROSS_RESP       decimal(12, 3) null,
-  GNR              decimal(12, 3) null,
-  MEAN_NR_WT       decimal(9, 3)  null
+  PRIOR_SUM        float null,
+  GROSS_RESP       float null,
+  GNR              float null,
+  MEAN_NR_WT       float  null
 );
 
 
